@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Controllo PWM</title>
+<script>
+    // Funzione per inviare la richiesta asincrona
+    function setPWM() {
+        var sliderValue = document.getElementById("slider").value;
+        var dropdownValue = document.getElementById("dropdown").value;
+        var xhr = new XMLHttpRequest();
+        var url = "/setpwm/" + sliderValue + "/pin/" + dropdownValue;
+
+        xhr.open("GET", url, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState == 4 && xhr.status == 200) {
+                alert("Richiesta inviata: " + url);
+            }
+        }
+        xhr.send();
+    }
+</script>
+</head>
+<body>
+
+<h3>Controllo PWM</h3>
+
+<label for="slider">Valore PWM (0-100):</label>
+<input type="range" id="slider" name="slider" min="0" max="100"><br><br>
+
+<label for="dropdown">Pin (0-30):</label>
+<select id="dropdown" name="dropdown">
+    <!-- Opzioni generate dinamicamente -->
+    <script>
+        for (let i = 0; i <= 30; i++) {
+            document.write('<option value="' + i + '">' + i + '</option>');
+        }
+    </script>
+</select><br><br>
+
+<button onclick="setPWM()">Imposta PWM</button>
+
+</body>
+</html>

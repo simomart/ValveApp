@@ -1,0 +1,13 @@
+Comando per accedere ai file su micro
+rshell -p /dev/tty.SLAB_USBtoUART        
+
+Dopodichè in /pyboard/ è montata la flash
+
+Per la Shell Python lanciare "repl" dentro a rshell
+
+Per vedere un terminale
+screen /dev/cu.SLAB_USBtoUART 115200
+
+Per copiare
+cd ./src
+rsync . /pyboard/
