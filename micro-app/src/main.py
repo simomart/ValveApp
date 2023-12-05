@@ -1,6 +1,6 @@
 import ubinascii
 import machine
-from machine import Pin, PWM
+from machine import Pin, PWM, DAC
 import gc
 
 import sys
@@ -76,7 +76,36 @@ def SetPWM (percent, pin, httpResponse):
         
         httpResponse.WriteResponseJSONOk({"Success":"True"})
     except Exception as ex:
-        httpResponse.WriteResponseJSONOk({"Success":"False", "Message": ex})
+        httpResponse.WriteResponseJSONOk({"Success":"False", "Message": str(ex)})
+
+# Set analog
+def SetAnalog(percent, pin, httpResponse):
+    try:
+        # Converti la percentuale in intero
+        percent = int(percent)
+
+        # Controlla se il valore percentuale è nel range valido (0-100)
+        if percent < 0 or percent > 100:
+            print("Percentage out of range (0-100)")
+            return
+
+        # Verifica che il pin sia uno dei pin DAC validi (25 o 26)
+        if pin not in [25, 26]:
+            httpResponse.WriteResponseJSONOk({"Success":"False", "Message": "Invalid DAC pin"})
+            return
+
+        # Inizializza DAC sul pin specificato
+        dac = DAC(Pin(pin))
+
+        # Calcola il valore per DAC (0-255) in base alla percentuale
+        dac_value = int((percent / 100) * 255)
+
+        # Imposta il valore DAC
+        dac.write(dac_value)
+
+        httpResponse.WriteResponseJSONOk({"Success":"True"})
+    except Exception as ex:
+        httpResponse.WriteResponseJSONOk({"Success":"False", "Message": str(ex)})
 
 @MicroWebSrv.route('/info')
 def handlerFuncGet(httpClient, httpResponse):
@@ -85,6 +114,10 @@ def handlerFuncGet(httpClient, httpResponse):
 @MicroWebSrv.route('/setpwm/<percent>/pin/<pin>')
 def handlerFuncGet(httpClient, httpResponse, routeArgs):
     SetPWM(routeArgs["percent"], routeArgs["pin"], httpResponse)
+    
+@MicroWebSrv.route('/setdac/<percent>/pin/<pin>')
+def handlerFuncGet(httpClient, httpResponse, routeArgs):
+    SetAnalog(routeArgs["percent"], routeArgs["pin"], httpResponse)
     
 # @MicroWebSrv.route('/post-test', 'POST')
 # def handlerFuncPost(httpClient, httpResponse) :

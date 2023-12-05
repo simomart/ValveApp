@@ -1,19 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Controllo PWM</title>
+<title>Controllo PWM e DAC</title>
 <script>
-    // Funzione per inviare la richiesta asincrona
+    // Funzione per inviare la richiesta asincrona per il PWM
     function setPWM() {
-        var sliderValue = document.getElementById("slider").value;
-        var dropdownValue = document.getElementById("dropdown").value;
+        var sliderValue = document.getElementById("sliderPWM").value;
+        var dropdownValue = document.getElementById("dropdownPWM").value;
         var xhr = new XMLHttpRequest();
         var url = "/setpwm/" + sliderValue + "/pin/" + dropdownValue;
 
         xhr.open("GET", url, true);
         xhr.onreadystatechange = function() {
             if (xhr.readyState == 4 && xhr.status == 200) {
-                alert("Richiesta inviata: " + url);
+                console.log("Richiesta PWM inviata: " + url);
+            }
+        }
+        xhr.send();
+    }
+
+    // Funzione per inviare la richiesta asincrona per il DAC
+    function setDAC() {
+        var sliderValue = document.getElementById("sliderDAC").value;
+        var dropdownValue = document.getElementById("dropdownDAC").value;
+        var xhr = new XMLHttpRequest();
+        var url = "/setdac/" + sliderValue + "/pin/" + dropdownValue;
+
+        xhr.open("GET", url, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState == 4 && xhr.status == 200) {
+                console.log("Richiesta DAC inviata: " + url);
             }
         }
         xhr.send();
@@ -24,20 +40,33 @@
 
 <h3>Controllo PWM</h3>
 
-<label for="slider">Valore PWM (0-100):</label>
-<input type="range" id="slider" name="slider" min="0" max="100"><br><br>
+<label for="sliderPWM">Valore PWM (0-100):</label>
+<input type="range" id="sliderPWM" name="sliderPWM" min="0" max="100"><br><br>
 
-<label for="dropdown">Pin (0-30):</label>
-<select id="dropdown" name="dropdown">
-    <!-- Opzioni generate dinamicamente -->
+<label for="dropdownPWM">Pin PWM (0-40):</label>
+<select id="dropdownPWM" name="dropdownPWM">
+    <!-- Opzioni generate dinamicamente per il PWM -->
     <script>
-        for (let i = 0; i <= 30; i++) {
+        for (let i = 0; i <= 40; i++) {
             document.write('<option value="' + i + '">' + i + '</option>');
         }
     </script>
 </select><br><br>
 
 <button onclick="setPWM()">Imposta PWM</button>
+
+<h3>Controllo DAC</h3>
+
+<label for="sliderDAC">Valore DAC (0-100):</label>
+<input type="range" id="sliderDAC" name="sliderDAC" min="0" max="100"><br><br>
+
+<label for="dropdownDAC">Pin DAC:</label>
+<select id="dropdownDAC" name="dropdownDAC">
+    <option value="25">25 (GPIO 25)</option>
+    <option value="26">26 (GPIO 26)</option>
+</select><br><br>
+
+<button onclick="setDAC()">Imposta DAC</button>
 
 </body>
 </html>
