@@ -2,11 +2,15 @@ import ubinascii
 import machine
 from machine import Pin, PWM, DAC
 import gc
+import _thread
 
 import sys
 sys.path.append('microWebSrv')
 from microWebSrv.microWebSrv import MicroWebSrv
 from wifi import set_ac, set_client
+
+from analogRead import oscilloscope, getReadings, setRun
+oscilloscope_running = False
 
 # Imposta il nome della rete e la password
 ssid = "ESP-Test-Simone"
@@ -51,7 +55,7 @@ def info_endpoint(http_client, httpResponse):
     httpResponse.WriteResponseJSONOk(info)
 
 # Set PWM on PIN
-def SetPWM (percent, pin, httpResponse):
+def SetPWM (percent, pin, freq, httpResponse):
     try:
         # Convert percent to integer
         percent = int(percent)
@@ -63,7 +67,7 @@ def SetPWM (percent, pin, httpResponse):
 
         # Initialize PWM on the specified pin
         pwm_pin = PWM(Pin(int(pin)))
-        pwm_pin.freq(1000)
+        pwm_pin.freq(freq)
 
         # Modify the duty_cycle_max accordingly
         duty_cycle_max = 1023
@@ -111,9 +115,25 @@ def SetAnalog(percent, pin, httpResponse):
 def handlerFuncGet(httpClient, httpResponse):
     info_endpoint(httpClient, httpResponse)
     
-@MicroWebSrv.route('/setpwm/<percent>/pin/<pin>')
+@MicroWebSrv.route('/startOscilloscope/<microseconds>/pin/<pin>/readings/<readings>')
 def handlerFuncGet(httpClient, httpResponse, routeArgs):
-    SetPWM(routeArgs["percent"], routeArgs["pin"], httpResponse)
+    setRun(True)
+    #_thread.start_new_thread(oscilloscope, (10000, 100, 34))
+    _thread.start_new_thread(oscilloscope, (routeArgs["readings"], routeArgs["microseconds"], routeArgs["pin"]))
+    httpResponse.WriteResponseJSONOk({"Success":"True"})
+
+@MicroWebSrv.route('/stopOscilloscope')
+def handlerFuncGet(httpClient, httpResponse):
+    setRun(False)
+    httpResponse.WriteResponseJSONOk({"Success":"True"})
+
+@MicroWebSrv.route('/getOscilloscopeData')
+def handlerFuncGet(httpClient, httpResponse):
+    httpResponse.WriteResponseJSONOk({"Success":"True", "Readings": getReadings()})
+    
+@MicroWebSrv.route('/setpwm/<percent>/pin/<pin>/freq/<freq>')
+def handlerFuncGet(httpClient, httpResponse, routeArgs):
+    SetPWM(routeArgs["percent"], routeArgs["pin"], routeArgs["freq"], httpResponse)
     
 @MicroWebSrv.route('/setdac/<percent>/pin/<pin>')
 def handlerFuncGet(httpClient, httpResponse, routeArgs):
@@ -129,4 +149,4 @@ def handlerFuncGet(httpClient, httpResponse, routeArgs):
 # Avvia il server
 srv = MicroWebSrv(webPath='html/')
 srv.MaxWebSocketRecvLen     = 256
-srv.Start(threaded=True)
+srv.Start(threaded=False)

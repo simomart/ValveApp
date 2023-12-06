@@ -3,12 +3,16 @@
 <head>
 <title>Controllo PWM e DAC</title>
 <script>
+    var OscilloscopeStarted = false;
+
     // Funzione per inviare la richiesta asincrona per il PWM
     function setPWM() {
         var sliderValue = document.getElementById("sliderPWM").value;
         var dropdownValue = document.getElementById("dropdownPWM").value;
+        var freqPWM = document.getElementById("freqPWM").value;
+
         var xhr = new XMLHttpRequest();
-        var url = "/setpwm/" + sliderValue + "/pin/" + dropdownValue;
+        var url = "/setpwm/" + sliderValue + "/pin/" + dropdownValue + "/freq/" + freqPWM;
 
         xhr.open("GET", url, true);
         xhr.onreadystatechange = function() {
@@ -34,6 +38,148 @@
         }
         xhr.send();
     }
+
+    function startOscilloscope() {
+        OscilloscopeStarted = true;
+        var microseconds = document.getElementById("microseconds").value;
+        var adcPin = document.getElementById("adcPin").value;
+        var readings = document.getElementById("readings").value;
+        var url = '/startOscilloscope/' + microseconds + '/pin/' + adcPin + '/readings/' + readings;
+    
+        sendRequest(url, function(response) {
+            console.log('Oscilloscope Data:', response);
+        });
+        getOscilloscopeData();
+    }
+    
+    function stopOscilloscope() {
+        OscilloscopeStarted = false;
+        sendRequest('/stopOscilloscope', function(response) {
+            console.log('Oscilloscope Data:', response);
+        });
+    }
+    
+    function getOscilloscopeData() {
+        sendRequest('/getOscilloscopeData', function(response) {
+            console.log('Oscilloscope Data:', response);
+            calculateStatistics(response["Readings"], document.getElementById("microseconds").value)
+            error_perc = (1-(document.getElementById("microseconds").value / document.getElementById('averageValue').textContent)) * 100
+            console.log("Error percent:", error_perc)
+            if (error_perc < 10)
+                drawOscilloscopeData(response["Readings"])
+            if (OscilloscopeStarted)
+                getOscilloscopeData();
+        });
+    }
+    
+    function sendRequest(url, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", url, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState == 4 && xhr.status == 200) {
+                if (callback) {
+                    callback(JSON.parse(xhr.responseText));
+                } else {
+                    console.log('Request successful:', url);
+                }
+            }
+        };
+        xhr.send();
+    }
+
+    function drawOscilloscopeData(readings) {
+        var canvas = document.getElementById('oscilloscopeCanvas');
+        var ctx = canvas.getContext('2d');
+    
+        // Pulisci il canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+        // Ordina i dati per microsecondi
+        readings.sort((a, b) => a[1] - b[1]);
+    
+        // Trova i valori minimo e massimo dei microsecondi per la scala X
+        var minMicrosecond = readings[0][1];
+        var maxMicrosecond = readings[readings.length - 1][1];
+        var xScale = canvas.width / (maxMicrosecond - minMicrosecond);
+    
+        // Scala Y (rilevazioni da 0 a 4096)
+        var yScale = canvas.height / 4096;
+    
+        // Disegna la griglia
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = 1;
+    
+        // Linee verticali
+        for (var i = 0; i <= canvas.width; i += canvas.width / 10) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, canvas.height);
+            ctx.stroke();
+        }
+    
+        // Linee orizzontali
+        for (var j = 0; j <= canvas.height; j += canvas.height / 10) {
+            ctx.beginPath();
+            ctx.moveTo(0, j);
+            ctx.lineTo(canvas.width, j);
+            ctx.stroke();
+        }
+    
+        // Imposta alcune proprietà per il grafico
+        ctx.strokeStyle = '#00FF00'; // Colore della linea
+        ctx.lineWidth = 2; // Spessore della linea
+    
+        // Inizia a disegnare il grafico
+        ctx.beginPath();
+    
+        readings.forEach(function(reading, index) {
+            var x = (reading[1] - minMicrosecond) * xScale;
+            var y = canvas.height - (reading[0] * yScale); // Inverti l'asse Y
+    
+            if (index === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+    
+        ctx.stroke();
+    
+        // Aggiungi etichette agli assi
+        ctx.fillStyle = '#000';
+        ctx.font = '12px Arial';
+    
+        // Etichette asse X
+        for (var i = 0; i <= canvas.width; i += canvas.width / 10) {
+            var labelX = minMicrosecond + (i / xScale);
+            ctx.fillText(labelX.toFixed(0), i, canvas.height - 10);
+        }
+    
+        // Etichette asse Y
+        for (var j = 0; j <= canvas.height; j += canvas.height / 10) {
+            var labelY = 4096 - (j / yScale);
+            ctx.fillText(labelY.toFixed(0), 0, j);
+        }
+    }    
+
+    function calculateStatistics(readings, targetMicroseconds) {
+        readings.sort((a, b) => a[1] - b[1]);
+        // Calcolo delle differenze tra i timestamp consecutivi
+        var differences = readings.slice(1).map((r, index) => {
+            // Confronta con il timestamp precedente
+            return Math.abs(r[1] - readings[index][1]);
+        });
+        
+        // Calcolo della media delle differenze
+        var sum = differences.reduce((a, b) => a + b, 0);
+        var averageDifference = sum / differences.length;
+    
+        // Calcolo della deviazione standard delle differenze
+        var variance = differences.reduce((a, b) => a + Math.pow(b - averageDifference, 2), 0) / differences.length;
+        var standardDeviation = Math.sqrt(variance);
+    
+        // Aggiornamento delle etichette sul sito web
+        document.getElementById('averageValue').textContent = averageDifference.toFixed(2);
+        document.getElementById('standardDeviationValue').textContent = standardDeviation.toFixed(2);
+    }
+    
 </script>
 </head>
 <body>
@@ -41,16 +187,31 @@
 <h3>Controllo PWM</h3>
 
 <label for="sliderPWM">Valore PWM (0-100):</label>
-<input type="range" id="sliderPWM" name="sliderPWM" min="0" max="100"><br><br>
+<input type="text" id="sliderPWM" name="sliderPWM" value="50"><br><br>
 
-<label for="dropdownPWM">Pin PWM (0-40):</label>
+<label for="freqPWM">Frequenza PWM:</label>
+<input type="text" id="freqPWM" name="freqPWM" value="1000"><br><br>
+
+<label for="dropdownPWM">Pin PWM:</label>
 <select id="dropdownPWM" name="dropdownPWM">
-    <!-- Opzioni generate dinamicamente per il PWM -->
-    <script>
-        for (let i = 0; i <= 40; i++) {
-            document.write('<option value="' + i + '">' + i + '</option>');
-        }
-    </script>
+    <option value="2">GPIO 2</option>
+    <option value="4">GPIO 4</option>
+    <option value="12">GPIO 12</option>
+    <option value="13">GPIO 13</option>
+    <option value="14">GPIO 14</option>
+    <option value="15">GPIO 15</option>
+    <option value="16">GPIO 16</option>
+    <option value="17">GPIO 17</option>
+    <option value="18">GPIO 18</option>
+    <option value="19">GPIO 19</option>
+    <option value="21">GPIO 21</option>
+    <option value="22">GPIO 22</option>
+    <option value="23">GPIO 23</option>
+    <option value="25">GPIO 25</option>
+    <option value="26">GPIO 26</option>
+    <option value="27">GPIO 27</option>
+    <option value="32">GPIO 32</option>
+    <option value="33">GPIO 33</option>
 </select><br><br>
 
 <button onclick="setPWM()">Imposta PWM</button>
@@ -58,7 +219,7 @@
 <h3>Controllo DAC</h3>
 
 <label for="sliderDAC">Valore DAC (0-100):</label>
-<input type="range" id="sliderDAC" name="sliderDAC" min="0" max="100"><br><br>
+<input type="text" id="sliderDAC" name="sliderDAC" value="50"><br><br>
 
 <label for="dropdownDAC">Pin DAC:</label>
 <select id="dropdownDAC" name="dropdownDAC">
@@ -67,6 +228,37 @@
 </select><br><br>
 
 <button onclick="setDAC()">Imposta DAC</button>
+
+<h3>Oscilloscope Control</h3>
+
+<label for="microseconds">Microseconds:</label>
+<input type="number" id="microseconds" name="microseconds" value="100"><br><br>
+
+<label for="adcPin">Select ADC Pin:</label>
+<select id="adcPin" name="adcPin">
+    <option value="32">GPIO 32</option>
+    <option value="33">GPIO 33</option>
+    <option value="34">GPIO 34</option>
+    <option value="35">GPIO 35</option>
+    <option value="36">GPIO 36 (VP)</option>
+    <option value="39">GPIO 39 (VN)</option>
+</select><br><br>
+
+<label for="readings">Readings:</label>
+<input type="number" id="readings" name="readings" value="100"><br><br>
+
+<button onclick="startOscilloscope()">Start Oscilloscope</button>
+<button onclick="stopOscilloscope()">Stop Oscilloscope</button>
+<!-- <button onclick="getOscilloscopeData()">Get Oscilloscope Data</button> -->
+<br><br>
+<div>
+    <strong>Media (us):</strong> <span id="averageValue">-</span>
+</div>
+<div>
+    <strong>Deviazione Standard (us):</strong> <span id="standardDeviationValue">-</span>
+</div>
+<br><br>
+<canvas id="oscilloscopeCanvas" width="800" height="400" style="border: 1px black solid;"></canvas>
 
 </body>
 </html>
