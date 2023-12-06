@@ -90,6 +90,9 @@
     function drawOscilloscopeData(readings) {
         var canvas = document.getElementById('oscilloscopeCanvas');
         var ctx = canvas.getContext('2d');
+
+        var maxY = parseInt(document.getElementById('maxScaleY').value);
+        var minY = parseInt(document.getElementById('minScaleY').value);
     
         // Pulisci il canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -103,7 +106,7 @@
         var xScale = canvas.width / (maxMicrosecond - minMicrosecond);
     
         // Scala Y (rilevazioni da 0 a 4096)
-        var yScale = canvas.height / 4096;
+        var yScale = canvas.height / (maxY - minY);
     
         // Disegna la griglia
         ctx.strokeStyle = '#ddd';
@@ -134,7 +137,7 @@
     
         readings.forEach(function(reading, index) {
             var x = (reading[1] - minMicrosecond) * xScale;
-            var y = canvas.height - (reading[0] * yScale); // Inverti l'asse Y
+            var y = canvas.height - ((reading[0] - minY) * yScale); // Adatta il calcolo di y
     
             if (index === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
@@ -154,7 +157,7 @@
     
         // Etichette asse Y
         for (var j = 0; j <= canvas.height; j += canvas.height / 10) {
-            var labelY = 4096 - (j / yScale);
+            var labelY = maxY - (j * (maxY - minY) / canvas.height);
             ctx.fillText(labelY.toFixed(0), 0, j);
         }
     }    
@@ -246,6 +249,9 @@
 
 <label for="readings">Readings:</label>
 <input type="number" id="readings" name="readings" value="100"><br><br>
+<input type="number" id="minScaleY" name="minScaleY" value="0">
+<input type="number" id="maxScaleY" name="maxScaleY" value="4096"><br><br>
+
 
 <button onclick="startOscilloscope()">Start Oscilloscope</button>
 <button onclick="stopOscilloscope()">Stop Oscilloscope</button>
