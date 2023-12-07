@@ -64,8 +64,11 @@
             console.log('Oscilloscope Data:', response);
             calculateStatistics(response["Readings"], document.getElementById("microseconds").value)
             error_perc = (1-(document.getElementById("microseconds").value / document.getElementById('averageValue').textContent)) * 100
-            console.log("Error percent:", error_perc)
-            if (error_perc < 10)
+            var standardDeviation = parseFloat(document.getElementById('standardDeviationValue').textContent);
+            var maxError = parseFloat(document.getElementById('maxError').value);
+            var maxDeviation = parseFloat(document.getElementById('maxDeviation').value); 
+            console.log("Error percent:", error_perc, "Standard Deviation:", standardDeviation);
+            if (error_perc <= maxError && standardDeviation <= maxDeviation)
                 drawOscilloscopeData(response["Readings"])
             if (OscilloscopeStarted)
                 getOscilloscopeData();
@@ -90,7 +93,7 @@
     function drawOscilloscopeData(readings) {
         var canvas = document.getElementById('oscilloscopeCanvas');
         var ctx = canvas.getContext('2d');
-
+    
         var maxY = parseInt(document.getElementById('maxScaleY').value);
         var minY = parseInt(document.getElementById('minScaleY').value);
     
@@ -100,10 +103,13 @@
         // Ordina i dati per microsecondi
         readings.sort((a, b) => a[1] - b[1]);
     
-        // Trova i valori minimo e massimo dei microsecondi per la scala X
-        var minMicrosecond = readings[0][1];
-        var maxMicrosecond = readings[readings.length - 1][1];
-        var xScale = canvas.width / (maxMicrosecond - minMicrosecond);
+        // Calcola il delta temporale per ogni lettura rispetto alla prima lettura
+        var firstMicrosecond = readings[0][1];
+        readings = readings.map(r => [r[0], r[1] - firstMicrosecond]);
+    
+        // Trova il valore massimo dei microsecondi delta per la scala X
+        var maxMicrosecondDelta = readings[readings.length - 1][1];
+        var xScale = canvas.width / maxMicrosecondDelta;
     
         // Scala Y (rilevazioni da 0 a 4096)
         var yScale = canvas.height / (maxY - minY);
@@ -136,7 +142,7 @@
         ctx.beginPath();
     
         readings.forEach(function(reading, index) {
-            var x = (reading[1] - minMicrosecond) * xScale;
+            var x = reading[1] * xScale;
             var y = canvas.height - ((reading[0] - minY) * yScale); // Adatta il calcolo di y
     
             if (index === 0) ctx.moveTo(x, y);
@@ -151,7 +157,7 @@
     
         // Etichette asse X
         for (var i = 0; i <= canvas.width; i += canvas.width / 10) {
-            var labelX = minMicrosecond + (i / xScale);
+            var labelX = (i / xScale);
             ctx.fillText(labelX.toFixed(0), i, canvas.height - 10);
         }
     
@@ -160,7 +166,8 @@
             var labelY = maxY - (j * (maxY - minY) / canvas.height);
             ctx.fillText(labelY.toFixed(0), 0, j);
         }
-    }    
+    }
+    
 
     function calculateStatistics(readings, targetMicroseconds) {
         readings.sort((a, b) => a[1] - b[1]);
@@ -251,7 +258,10 @@
 <input type="number" id="readings" name="readings" value="100"><br><br>
 <input type="number" id="minScaleY" name="minScaleY" value="0">
 <input type="number" id="maxScaleY" name="maxScaleY" value="4096"><br><br>
-
+<label for="maxError">Max Error %:</label>
+<input type="number" id="maxError" name="maxError" value="10"><br>
+<label for="maxDeviation">Max Deviazione Standard:</label>
+<input type="number" id="maxDeviation" name="maxDeviation" value="5"><br><br>
 
 <button onclick="startOscilloscope()">Start Oscilloscope</button>
 <button onclick="stopOscilloscope()">Stop Oscilloscope</button>
