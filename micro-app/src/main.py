@@ -10,6 +10,10 @@ from microWebSrv.microWebSrv import MicroWebSrv
 from wifi import set_ac, set_client
 
 from analogRead import oscilloscope, getReadings, setRun
+
+machine.freq(240000000)
+
+
 oscilloscope_running = False
 
 # Imposta il nome della rete e la password
