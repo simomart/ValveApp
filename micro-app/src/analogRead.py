@@ -4,7 +4,7 @@ import time
 readings = [(0,0)]
 run = False
 
-def setRun(state):
+def setOscilloscopeRun(state):
     global run
     run = state
 

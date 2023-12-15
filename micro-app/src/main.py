@@ -9,12 +9,15 @@ sys.path.append('microWebSrv')
 from microWebSrv.microWebSrv import MicroWebSrv
 from wifi import set_ac, set_client
 
-from analogRead import oscilloscope, getReadings, setRun
+from analogRead import oscilloscope, getReadings, setOscilloscopeRun
+
+from gpsRead import startGPS, getGPS, setGPSRun
 
 machine.freq(240000000)
 
 
 oscilloscope_running = False
+gps_running = False
 
 # Imposta il nome della rete e la password
 ssid = "ESP-Test-Simone"
@@ -119,16 +122,32 @@ def SetAnalog(percent, pin, httpResponse):
 def handlerFuncGet(httpClient, httpResponse):
     info_endpoint(httpClient, httpResponse)
     
+@MicroWebSrv.route('/startGPS/history/<history>')
+def handlerFuncGet(httpClient, httpResponse, routeArgs):
+    setGPSRun(True)
+    #_thread.start_new_thread(oscilloscope, (10000, 100, 34))
+    _thread.start_new_thread(startGPS, (routeArgs["history"]))
+    httpResponse.WriteResponseJSONOk({"Success":"True"})
+
+@MicroWebSrv.route('/stopGPS/history/<history>')
+def handlerFuncGet(httpClient, httpResponse):
+    setGPSRun(False)
+    httpResponse.WriteResponseJSONOk({"Success":"True"})
+
+@MicroWebSrv.route('/getGPS')
+def handlerFuncGet(httpClient, httpResponse):
+    httpResponse.WriteResponseJSONOk({"Success":"True", "Readings": getGPS()})
+    
 @MicroWebSrv.route('/startOscilloscope/<microseconds>/pin/<pin>/readings/<readings>')
 def handlerFuncGet(httpClient, httpResponse, routeArgs):
-    setRun(True)
+    setOscilloscopeRun(True)
     #_thread.start_new_thread(oscilloscope, (10000, 100, 34))
     _thread.start_new_thread(oscilloscope, (routeArgs["readings"], routeArgs["microseconds"], routeArgs["pin"]))
     httpResponse.WriteResponseJSONOk({"Success":"True"})
 
 @MicroWebSrv.route('/stopOscilloscope')
 def handlerFuncGet(httpClient, httpResponse):
-    setRun(False)
+    setOscilloscopeRun(False)
     httpResponse.WriteResponseJSONOk({"Success":"True"})
 
 @MicroWebSrv.route('/getOscilloscopeData')
