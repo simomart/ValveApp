@@ -19,8 +19,6 @@ class ESP32S3ROM(ESP32ROM):
 
     CHIP_DETECT_MAGIC_VALUE = [0x9]
 
-    FPGA_SLOW_BOOT = False
-
     IROM_MAP_START = 0x42000000
     IROM_MAP_END = 0x44000000
     DROM_MAP_START = 0x3C000000
@@ -117,6 +115,8 @@ class ESP32S3ROM(ESP32ROM):
         [0x50000000, 0x50002000, "RTC_DATA"],
     ]
 
+    UF2_FAMILY_ID = 0xC47E5767
+
     def get_pkg_version(self):
         num_word = 3
         return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 21) & 0x07
@@ -165,10 +165,53 @@ class ESP32S3ROM(ESP32ROM):
     def get_chip_description(self):
         major_rev = self.get_major_chip_version()
         minor_rev = self.get_minor_chip_version()
-        return f"{self.CHIP_NAME} (revision v{major_rev}.{minor_rev})"
+        pkg_version = self.get_pkg_version()
+
+        chip_name = {
+            0: "ESP32-S3 (QFN56)",
+            1: "ESP32-S3-PICO-1 (LGA56)",
+        }.get(pkg_version, "unknown ESP32-S3")
+
+        return f"{chip_name} (revision v{major_rev}.{minor_rev})"
+
+    def get_flash_cap(self):
+        num_word = 3
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 27) & 0x07
+
+    def get_flash_vendor(self):
+        num_word = 4
+        vendor_id = (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 0) & 0x07
+        return {1: "XMC", 2: "GD", 3: "FM", 4: "TT", 5: "BY"}.get(vendor_id, "")
+
+    def get_psram_cap(self):
+        num_word = 4
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 3) & 0x03
+
+    def get_psram_vendor(self):
+        num_word = 4
+        vendor_id = (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 7) & 0x03
+        return {1: "AP_3v3", 2: "AP_1v8"}.get(vendor_id, "")
 
     def get_chip_features(self):
-        return ["WiFi", "BLE"]
+        features = ["WiFi", "BLE"]
+
+        flash = {
+            0: None,
+            1: "Embedded Flash 8MB",
+            2: "Embedded Flash 4MB",
+        }.get(self.get_flash_cap(), "Unknown Embedded Flash")
+        if flash is not None:
+            features += [flash + f" ({self.get_flash_vendor()})"]
+
+        psram = {
+            0: None,
+            1: "Embedded PSRAM 8MB",
+            2: "Embedded PSRAM 2MB",
+        }.get(self.get_psram_cap(), "Unknown Embedded PSRAM")
+        if psram is not None:
+            features += [psram + f" ({self.get_psram_vendor()})"]
+
+        return features
 
     def get_crystal_freq(self):
         # ESP32S3 XTAL is fixed to 40MHz
@@ -305,6 +348,17 @@ class ESP32S3ROM(ESP32ROM):
 
     def change_baud(self, baud):
         ESPLoader.change_baud(self, baud)
+
+    def check_spi_connection(self, spi_connection):
+        if not set(spi_connection).issubset(set(range(0, 22)) | set(range(26, 49))):
+            raise FatalError("SPI Pin numbers must be in the range 0-21, or 26-48.")
+        if spi_connection[3] > 46:  # hd_gpio_num must be <= SPI_GPIO_NUM_LIMIT (46)
+            raise FatalError("SPI HD Pin number must be <= 46.")
+        if any([v for v in spi_connection if v in [19, 20]]):
+            print(
+                "WARNING: GPIO pins 19 and 20 are used by USB-Serial/JTAG and USB-OTG, "
+                "consider using other pins for SPI flash connection."
+            )
 
 
 class ESP32S3StubLoader(ESP32S3ROM):

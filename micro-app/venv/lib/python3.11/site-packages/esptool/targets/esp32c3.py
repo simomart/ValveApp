@@ -14,8 +14,6 @@ class ESP32C3ROM(ESP32ROM):
     CHIP_NAME = "ESP32-C3"
     IMAGE_CHIP_ID = 5
 
-    FPGA_SLOW_BOOT = False
-
     IROM_MAP_START = 0x42000000
     IROM_MAP_END = 0x42800000
     DROM_MAP_START = 0x3C000000
@@ -31,8 +29,8 @@ class ESP32C3ROM(ESP32ROM):
 
     BOOTLOADER_FLASH_OFFSET = 0x0
 
-    # Magic value for ESP32C3 eco 1+2 and ESP32C3 eco3 respectivly
-    CHIP_DETECT_MAGIC_VALUE = [0x6921506F, 0x1B31506F]
+    # Magic values for ESP32-C3 eco 1+2, eco 3, eco 6, and eco 7 respectively
+    CHIP_DETECT_MAGIC_VALUE = [0x6921506F, 0x1B31506F, 0x4881606F, 0x4361606F]
 
     UART_DATE_REG_ADDR = 0x60000000 + 0x7C
 
@@ -99,6 +97,8 @@ class ESP32C3ROM(ESP32ROM):
         [0x600FE000, 0x60100000, "MEM_INTERNAL2"],
     ]
 
+    UF2_FAMILY_ID = 0xD42BA06C
+
     def get_pkg_version(self):
         num_word = 3
         return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 21) & 0x07
@@ -114,16 +114,39 @@ class ESP32C3ROM(ESP32ROM):
         num_word = 5
         return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 24) & 0x03
 
+    def get_flash_cap(self):
+        num_word = 3
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 27) & 0x07
+
+    def get_flash_vendor(self):
+        num_word = 4
+        vendor_id = (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 0) & 0x07
+        return {1: "XMC", 2: "GD", 3: "FM", 4: "TT", 5: "ZBIT"}.get(vendor_id, "")
+
     def get_chip_description(self):
         chip_name = {
-            0: "ESP32-C3",
+            0: "ESP32-C3 (QFN32)",
+            1: "ESP8685 (QFN28)",
+            2: "ESP32-C3 AZ (QFN32)",
+            3: "ESP8686 (QFN24)",
         }.get(self.get_pkg_version(), "unknown ESP32-C3")
         major_rev = self.get_major_chip_version()
         minor_rev = self.get_minor_chip_version()
         return f"{chip_name} (revision v{major_rev}.{minor_rev})"
 
     def get_chip_features(self):
-        return ["WiFi", "BLE"]
+        features = ["WiFi", "BLE"]
+
+        flash = {
+            0: None,
+            1: "Embedded Flash 4MB",
+            2: "Embedded Flash 2MB",
+            3: "Embedded Flash 1MB",
+            4: "Embedded Flash 8MB",
+        }.get(self.get_flash_cap(), "Unknown Embedded Flash")
+        if flash is not None:
+            features += [flash + f" ({self.get_flash_vendor()})"]
+        return features
 
     def get_crystal_freq(self):
         # ESP32C3 XTAL is fixed to 40MHz
@@ -204,6 +227,15 @@ class ESP32C3ROM(ESP32ROM):
     def _post_connect(self):
         if not self.sync_stub_detected:  # Don't run if stub is reused
             self.disable_watchdogs()
+
+    def check_spi_connection(self, spi_connection):
+        if not set(spi_connection).issubset(set(range(0, 22))):
+            raise FatalError("SPI Pin numbers must be in the range 0-21.")
+        if any([v for v in spi_connection if v in [18, 19]]):
+            print(
+                "WARNING: GPIO pins 18 and 19 are used by USB-Serial/JTAG, "
+                "consider using other pins for SPI flash connection."
+            )
 
 
 class ESP32C3StubLoader(ESP32C3ROM):

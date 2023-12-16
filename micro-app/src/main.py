@@ -122,14 +122,13 @@ def SetAnalog(percent, pin, httpResponse):
 def handlerFuncGet(httpClient, httpResponse):
     info_endpoint(httpClient, httpResponse)
     
-@MicroWebSrv.route('/startGPS/history/<history>')
-def handlerFuncGet(httpClient, httpResponse, routeArgs):
+@MicroWebSrv.route('/startGPS')
+def handlerFuncGet(httpClient, httpResponse):
     setGPSRun(True)
-    #_thread.start_new_thread(oscilloscope, (10000, 100, 34))
-    _thread.start_new_thread(startGPS, (routeArgs["history"]))
+    _thread.start_new_thread(startGPS, ())
     httpResponse.WriteResponseJSONOk({"Success":"True"})
 
-@MicroWebSrv.route('/stopGPS/history/<history>')
+@MicroWebSrv.route('/stopGPS')
 def handlerFuncGet(httpClient, httpResponse):
     setGPSRun(False)
     httpResponse.WriteResponseJSONOk({"Success":"True"})

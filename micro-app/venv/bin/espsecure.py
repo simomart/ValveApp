@@ -1,4 +1,4 @@
-#!/Users/simonemartinelli/Repository/Mie/ValveApp/micro-app/venv/bin/python3.11
+#!/Users/simonemartinelli/Repository/Mie/Oscilloscopio-GPS-ESP32/micro-app/venv/bin/python3.11
 #
 # SPDX-FileCopyrightText: 2014-2022 Fredrik Ahlberg, Angus Gratton,
 # Espressif Systems (Shanghai) CO LTD, other contributors as noted.
