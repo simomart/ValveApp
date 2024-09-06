@@ -190,6 +190,46 @@
         document.getElementById('standardDeviationValue').textContent = standardDeviation.toFixed(2);
     }
     
+
+    var GPSTimer;  // Variabile per il timer di aggiornamento del GPS
+
+    function startGPS() {
+        sendRequest('/startGPS', function(response) {
+            console.log('GPS Data:', response);
+            if (response && response.Success === "True") {
+                // Aggiorna i campi ogni secondo
+                GPSTimer = setInterval(function() {
+                    getGPSData();
+                }, 1000);
+            }
+        });
+    }
+
+    function stopGPS() {
+        clearInterval(GPSTimer);  // Ferma il timer di aggiornamento
+        sendRequest('/stopGPS', function(response) {
+            console.log('GPS Data:', response);
+        });
+    }
+
+    function getGPSData() {
+        sendRequest('/getGPS', function(response) {
+            console.log('GPS Data:', response);
+            if (response && response.Success === "True") {
+                updateGPSFields(response.Readings);
+            }
+        });
+    }
+
+    function updateGPSFields(readings) {
+        // Aggiorna i campi con i dati del GPS
+        document.getElementById('gpsDatetime').textContent = readings[0];
+        document.getElementById('gpsLat').textContent = readings[1];
+        document.getElementById('gpsLon').textContent = readings[2];
+        document.getElementById('gpsAlt').textContent = readings[3];
+        document.getElementById('gpsSpeed').textContent = readings[4];
+        document.getElementById('gpsSatellites').textContent = readings[5];
+    }
 </script>
 </head>
 <body>
@@ -275,6 +315,32 @@
 </div>
 <br><br>
 <canvas id="oscilloscopeCanvas" width="800" height="400" style="border: 1px black solid;"></canvas>
+
+<br><br>
+
+<h3>GPS Control</h3>
+
+<button onclick="startGPS()">Start GPS</button>
+<button onclick="stopGPS()">Stop GPS</button>
+
+<div>
+    <strong>Datetime:</strong> <span id="gpsDatetime">-</span>
+</div>
+<div>
+    <strong>Latitude:</strong> <span id="gpsLat">-</span>
+</div>
+<div>
+    <strong>Longitude:</strong> <span id="gpsLon">-</span>
+</div>
+<div>
+    <strong>Altitude:</strong> <span id="gpsAlt">-</span>
+</div>
+<div>
+    <strong>Speed:</strong> <span id="gpsSpeed">-</span>
+</div>
+<div>
+    <strong>Satellites:</strong> <span id="gpsSatellites">-</span>
+</div>
 
 </body>
 </html>

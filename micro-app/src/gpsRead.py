@@ -71,7 +71,7 @@ def startGPS():
 
                     # Converti la data e l'ora in un formato più leggibile
                     timestamp = date_str + time_str
-                    datetime = format_time(timestamp, offset_hours=1)
+                    # datetime = format_time(timestamp, offset_hours=1)
                     
                     # Creare l'elemento nel formato richiesto e aggiungere allo storico
                     rilevazione = [datetime, lat, lon, alt, speed, satellite]
@@ -91,7 +91,7 @@ def startGPS():
                     # datetime = format_time(timestamp)
 
                     # Creare l'elemento nel formato richiesto e aggiungere allo storico
-                    rilevazione = [datetime, lat, lon, alt, speed, satellite]
+                    rilevazione = [timestamp, lat, lon, alt, speed, satellite]
                     print(rilevazione)
 
         except Exception as e:
